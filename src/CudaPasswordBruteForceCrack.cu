@@ -77,6 +77,10 @@ int main(void)
   }
   fclose(fp);
   free(line);
+  char* psw;
+  char* salt = "parallel";
+  psw = crypt("Ettore", salt);
+  std::cout<< "Ettore " << psw << "\n";
   printf("--- %s\n", hashesHost[0]);
   printf("--- %s\n", hashesHost[1]);
   printf("--- %s\n", hashesHost[11]);
