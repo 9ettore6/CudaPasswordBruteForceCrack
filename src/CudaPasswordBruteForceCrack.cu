@@ -45,7 +45,11 @@ __global__ void kernel(char** results, char** hashes, int dim) {
     char yyyy[12];
     char mm[12];
     char dd[12];
-    char* pwd="";
+    printf("Ciao");
+   /* char* pwd="";
+    char* psw;
+    char* salt = "parallel";
+    psw = crypt("Ettore", salt);*/
     /*if (hashes[i] == crypt(pwd,"parallel")){
       results[i]=pwd;
     }*/
@@ -58,8 +62,8 @@ int main(void)
 {
   #define dim 100
   char * resultsHost[dim];
-  char * hashes[dim];
-  char * results[dim];
+  char ** hashes;
+  char ** results;
   FILE * fp;
   char * line = NULL;
   size_t len = 0;
@@ -93,7 +97,7 @@ int main(void)
 
   // copy from host to device memory
   CUDA_CHECK_RETURN(
-      cudaMemcpy(hashesHost, hashes, dim * 13 * sizeof(char),
+      cudaMemcpy(hashes, hashesHost, dim * 13 * sizeof(char),
           cudaMemcpyHostToDevice));
 
 
@@ -104,7 +108,7 @@ int main(void)
   // copy results from device memory to host
 
   CUDA_CHECK_RETURN(
-      cudaMemcpy(results, resultsHost, dim * 13 * sizeof(char),
+      cudaMemcpy(resultsHost, results, dim * 13 * sizeof(char),
           cudaMemcpyDeviceToHost));
   cudaFree(hashes);
   cudaFree(results);
