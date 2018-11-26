@@ -1,7 +1,7 @@
 /*
  ============================================================================
  Name        : CudaPasswordBruteForceCrack.cu
- Author      : Luca
+ Author      : Ettore
  Version     :
  Copyright   : Your copyright notice
  Description : CUDA compute reciprocals
@@ -36,9 +36,12 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
 
 __global__ void kernel(char** results, char** hashes, int dim) {
   for(int i=0; i<dim; i++){
-    int m = threadIdx.y+blockIdx.y*blockDim.y;
-    int y = threadIdx.x+blockIdx.x*blockDim.x;
-    int d = threadIdx.z;
+	int mI = threadIdx.y+blockIdx.y*blockDim.y;
+	int yI = threadIdx.x+blockIdx.x*blockDim.x;
+	int dI = threadIdx.z;
+	char m = mI +'0';//da int a char
+	char y = yI +'0';
+	char d = dI +'0';
     char yyyy[12];
     char mm[12];
     char dd[12];
