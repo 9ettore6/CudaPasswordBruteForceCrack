@@ -35,17 +35,51 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
 }
 
 __global__ void kernel(char** results, char** hashes, int dim) {
-  for(int i=0; i<dim; i++){
 	int mI = threadIdx.y+blockIdx.y*blockDim.y;
-	int yI = threadIdx.x+blockIdx.x*blockDim.x;
+	int yI = threadIdx.x+blockIdx.x*blockDim.x + 1940;
 	int dI = threadIdx.z;
-	char m = mI +'0';//da int a char
-	char y = yI +'0';
-	char d = dI +'0';
-    char yyyy[12];
-    char mm[12];
-    char dd[12];
-    printf("Ciao");
+	char dictionary[10]={'0','1','2','3','4','5','6','7','8','9'};
+	//days
+	char dd[2];
+	if(dI<10){
+		dd[0]='0';
+		dd[1]=dictionary[dI];
+	}
+	else{
+		int tens = dI/10;
+		dd[0]=dictionary[tens];
+		int units = dI%10;
+		dd[1]=dictionary[units];
+	}
+	//months
+	char mm[2];
+	if(mI<10){
+			mm[0]='0';
+			mm[1]=dictionary[mI];
+		}
+		else{
+			int tens = mI/10;
+			mm[0]=dictionary[tens];
+			int units = mI%10;
+			mm[1]=dictionary[units];
+		}
+	//years -suppose yI=1996
+	char yyyy[4];
+	int thousands = yI/1000; //yI/1000=1 poichè è int
+	yyyy[0]=dictionary[thousands];
+	int tmp = yI%1000; //yI%1000=996
+	int hundreds = tmp/100; //996/100 = 9
+	yyyy[1]=dictionary[hundreds];
+	tmp = tmp%100; // 996%100=96
+	int tens= tmp/10;//96/10=9
+	yyyy[2]=dictionary[tens];
+	tmp=tmp%10;//96%10 = 6
+	int units = tmp;//6
+	yyyy[3]=dictionary[units];
+
+	char yyyymmdd[8] = {yyyy[0],yyyy[1],yyyy[2],yyyy[3],mm[0],mm[1],dd[0],dd[1]};
+	printf("data: %s", yyyymmdd);
+	for(int i=0; i<dim; i++){
    /* char* pwd="";
     char* psw;
     char* salt = "parallel";
@@ -57,7 +91,28 @@ __global__ void kernel(char** results, char** hashes, int dim) {
 
 }
 
-
+char getNumber(int n){
+	if(n==0)
+		return '0';
+	else if(n==1)
+		return '1';
+	else if(n==2)
+		return '2';
+	else if(n==3)
+		return '3';
+	else if(n==4)
+		return '4';
+	else if(n==5)
+		return '5';
+	else if(n==6)
+		return '6';
+	else if(n==7)
+		return '7';
+	else if(n==8)
+		return '8';
+	else if(n==9)
+		return '9';
+}
 int main(void)
 {
   #define dim 100
@@ -83,8 +138,8 @@ int main(void)
   free(line);
   char* psw;
   char* salt = "parallel";
-  psw = crypt("Ettore", salt);
-  std::cout<< "Ettore " << psw << "\n";
+  //psw = crypt("19961024", salt);
+  std::cout<< "19961024 " << psw << "\n";
   printf("--- %s\n", hashesHost[0]);
   printf("--- %s\n", hashesHost[1]);
   printf("--- %s\n", hashesHost[11]);
