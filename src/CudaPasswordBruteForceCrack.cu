@@ -33,12 +33,15 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
       << err << ") at " << file << ":" << line << std::endl;
   exit(1);
 }
-
+__constant__ char dictionary[11]={'0','1','2','3','4','5','6','7','8','9'};
 __global__ void kernel(char** results, char** hashes, int dim) {
 	int mI = threadIdx.y+blockIdx.y*blockDim.y;
 	int yI = threadIdx.x+blockIdx.x*blockDim.x + 1940;
 	int dI = threadIdx.z;
-	char dictionary[10]={'0','1','2','3','4','5','6','7','8','9'};
+
+	//conversion from int to char
+
+
 	//days
 	char dd[2];
 	if(dI<10){
@@ -77,8 +80,11 @@ __global__ void kernel(char** results, char** hashes, int dim) {
 	int units = tmp;//6
 	yyyy[3]=dictionary[units];
 
-	char yyyymmdd[8] = {yyyy[0],yyyy[1],yyyy[2],yyyy[3],mm[0],mm[1],dd[0],dd[1]};
-	printf("data: %s", yyyymmdd);
+	//end conversion
+
+
+	char yyyymmdd[9] = {yyyy[0],yyyy[1],yyyy[2],yyyy[3],mm[0],mm[1],dd[0],dd[1],0};
+	printf("%s \n",yyyymmdd);
 	for(int i=0; i<dim; i++){
    /* char* pwd="";
     char* psw;
@@ -91,28 +97,7 @@ __global__ void kernel(char** results, char** hashes, int dim) {
 
 }
 
-char getNumber(int n){
-	if(n==0)
-		return '0';
-	else if(n==1)
-		return '1';
-	else if(n==2)
-		return '2';
-	else if(n==3)
-		return '3';
-	else if(n==4)
-		return '4';
-	else if(n==5)
-		return '5';
-	else if(n==6)
-		return '6';
-	else if(n==7)
-		return '7';
-	else if(n==8)
-		return '8';
-	else if(n==9)
-		return '9';
-}
+
 int main(void)
 {
   #define dim 100
@@ -141,9 +126,10 @@ int main(void)
   //psw = crypt("19961024", salt);
   std::cout<< "19961024 " << psw << "\n";
   printf("--- %s\n", hashesHost[0]);
-  printf("--- %s\n", hashesHost[1]);
-  printf("--- %s\n", hashesHost[11]);
+
   // allocate device memory
+
+
   CUDA_CHECK_RETURN(
 		  cudaMalloc((void **) &hashes, sizeof(char) * 13 * dim));
 
