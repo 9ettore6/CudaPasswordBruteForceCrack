@@ -33,7 +33,7 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
       << err << ") at " << file << ":" << line << std::endl;
   exit(1);
 }
-__constant__ char dictionary[11]={'0','1','2','3','4','5','6','7','8','9'};
+__constant__ char dictionary[10]={'0','1','2','3','4','5','6','7','8','9'};
 __global__ void kernel(char** results, char** hashes, int dim) {
 	int mI = threadIdx.y+blockIdx.y*blockDim.y;
 	int yI = threadIdx.x+blockIdx.x*blockDim.x + 1940;
@@ -84,6 +84,7 @@ __global__ void kernel(char** results, char** hashes, int dim) {
 
 
 	char yyyymmdd[9] = {yyyy[0],yyyy[1],yyyy[2],yyyy[3],mm[0],mm[1],dd[0],dd[1],0};
+	printf("%s \n", yyyymmdd);
 	for(int i=0; i<dim; i++){
    /* char* pwd="";
     char* psw;
