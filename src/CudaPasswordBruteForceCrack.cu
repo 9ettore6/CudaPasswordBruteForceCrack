@@ -84,7 +84,6 @@ __global__ void kernel(char** results, char** hashes, int dim) {
 
 
 	char yyyymmdd[9] = {yyyy[0],yyyy[1],yyyy[2],yyyy[3],mm[0],mm[1],dd[0],dd[1],0};
-	printf("%s \n",yyyymmdd);
 	for(int i=0; i<dim; i++){
    /* char* pwd="";
     char* psw;
