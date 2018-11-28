@@ -37,7 +37,7 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
   exit(1);
 }
 __constant__ char dictionary[10]={'0','1','2','3','4','5','6','7','8','9'};
-__global__ void kernel(char** results, int dim, char** hashesDevice) {
+__global__ void kernel(char** resultsDevice, int dim, char** hashesDevice) {
 	int mI = threadIdx.y+blockIdx.y*blockDim.y;
 	int yI = threadIdx.x+blockIdx.x*blockDim.x + 1940;
 	int dI = threadIdx.z;
@@ -88,12 +88,12 @@ __global__ void kernel(char** results, int dim, char** hashesDevice) {
 
 	char yyyymmdd[9] = {yyyy[0],yyyy[1],yyyy[2],yyyy[3],mm[0],mm[1],dd[0],dd[1],0};
 	//printf("%c \n",hashesDevice[70][12]); //test cudaMemcpy
-    char* psw;
-    char* salt = "parallel";
-    psw = crypt("19961024", salt);
-    /*if (hashes[i] == psw){
-      results[i]=psw;
-    }*/
+	for(int i=0; i<dim; i++){
+		char* salt = "parallel";
+		if (hashesDevice[i] == crypt(yyyymmdd,"parallel")){
+	      resultsDevice[i]=yyyymmdd;
+	    }
+	}
 }
 
 
@@ -101,7 +101,7 @@ int main(void)
 {
 	#define dim 100
 	char * resultsHost[dim];
-	char ** results;
+	char ** resultsDevice;
 	FILE * fp;
 	char * line = NULL;
 	size_t len = 0;
@@ -120,10 +120,12 @@ int main(void)
 	}
 	fclose(fp);
 	free(line);
+	char yyyymmdd[9] = {'1','9','9','6','1','0','2','4', 0};
 	char* psw;
 	char* salt = "parallel";
-	psw = crypt("19961024", salt);
-	printf("--- %s\n", hashesHost[70]);
+	psw = crypt(yyyymmdd, salt);
+	printf("HOST --> Date: %s Hash: %s \n", yyyymmdd,psw);
+	//printf("--- %s\n", hashesHost[70]);
 
 	//GPU memory allocation
 	char * _ptrDevice[dim];
@@ -142,19 +144,19 @@ int main(void)
 
 
 	CUDA_CHECK_RETURN(
-		  cudaMalloc((void **) &results, sizeof(char) * 13 * dim));
+		  cudaMalloc((void **) &resultsDevice, sizeof(char) * 13 * dim));
 
 	//@@ INSERT CODE HERE
 	dim3 dimGrid(7,4);
 	dim3 dimBlock(10,3,31);
-	kernel<<<dimGrid, dimBlock>>>(results,dim,hashesDevice);
+	kernel<<<dimGrid, dimBlock>>>(resultsDevice,dim,hashesDevice);
 	// copy results from device memory to host
 
 	CUDA_CHECK_RETURN(
-	  cudaMemcpy(resultsHost, results, dim * 13 * sizeof(char),
+	  cudaMemcpy(resultsHost, resultsDevice, dim * 13 * sizeof(char),
 		  cudaMemcpyDeviceToHost));
 
 	cudaFree(hashesDevice);
-	cudaFree(results);
+	cudaFree(resultsDevice);
 	return 0;
 }
