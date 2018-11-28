@@ -37,7 +37,7 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
   exit(1);
 }
 __constant__ char dictionary[10]={'0','1','2','3','4','5','6','7','8','9'};
-__global__ void kernel(char** hashes, int dim, char** _a) {
+__global__ void kernel(char** results, int dim, char** _a) {
 	int mI = threadIdx.y+blockIdx.y*blockDim.y;
 	int yI = threadIdx.x+blockIdx.x*blockDim.x + 1940;
 	int dI = threadIdx.z;
