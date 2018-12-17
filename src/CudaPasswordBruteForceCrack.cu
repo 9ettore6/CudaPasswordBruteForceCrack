@@ -16,9 +16,15 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
-
-
 #include "crypt.h"
+#include "c_utils.h"
+#include "des.h"
+#include "des_utils.h"
+#include "bit_utils.h"
+#include "des_consts.h"
+#include "des_kernel.h"
+#include "cuda_utils.h"
+
 
 static void CheckCudaErrorAux(const char *, unsigned, const char *,
     cudaError_t);
@@ -36,15 +42,25 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
       << err << ") at " << file << ":" << line << std::endl;
   exit(1);
 }
-__constant__ char dictionary[10]={'0','1','2','3','4','5','6','7','8','9'};
-__global__ void kernel(char** resultsDevice, int dim, char** hashesDevice) {
+//__constant__ char dictionary[10]={'0','1','2','3','4','5','6','7','8','9'};
+__global__ void kernel(int* resultsDevice, int dim, u_int64_t* hashesDevice) {
 	int mI = threadIdx.y+blockIdx.y*blockDim.y;
 	int yI = threadIdx.x+blockIdx.x*blockDim.x + 1940;
 	int dI = threadIdx.z;
-
-	//conversion from int to char
-
-
+	//printf("%d \n",(yI-1940)*12*31+mI*31+dI);
+	//printf("---%d, ---%d, --  %d\n", yI,mI,dI);
+	//resultsDevice[(yI-1940)*12*31+mI*31+dI] = 1;
+	uint64_t block = yI*10000+mI*100+dI;
+	uint64_t encoded = full_des_encode_block(block, block);
+	//test
+	for(int i=0;i<dim;i++){
+		if (hashesDevice[i] == encoded){
+			resultsDevice[i]=1;
+		}else{
+			printf("hash %d -- enc %d -- blk %d -- it: %d\n", hashesDevice[i], encoded, block, i);
+		}
+	}
+	/*
 	//days
 	char dd[2];
 	if(dI<10){
@@ -86,77 +102,77 @@ __global__ void kernel(char** resultsDevice, int dim, char** hashesDevice) {
 	//end conversion
 
 
-	char yyyymmdd[9] = {yyyy[0],yyyy[1],yyyy[2],yyyy[3],mm[0],mm[1],dd[0],dd[1],0};
-	//printf("%c \n",hashesDevice[70][12]); //test cudaMemcpy
-	for(int i=0; i<dim; i++){
-		char* salt = "parallel";
-		if (hashesDevice[i] == crypt(yyyymmdd,"parallel")){
-	      resultsDevice[i]=yyyymmdd;
+	char yyyymmdd[9] = {yyyy[0],yyyy[1],yyyy[2],yyyy[3],mm[0],mm[1],dd[0],dd[1],0};*/
+	//printf("%d device \n",hashesDevice[55]); //test cudaMemcpy
+	/*for(int i=0; i<dim; i++){
+		uint64_t block = yI*10000+mI*100+dI; //0x0123456789ABCDEF;
+		//printf("block %d", block);
+		uint64_t encoded = full_des_encode_block(block, block);
+		//printf("en: %d", encoded);
+
+		if (hashesDevice[i] == encoded){
+			printf("hash: %d  enc: %d ----YEP \n",hashesDevice[i], encoded);
+			break;
+	    //  resultsDevice[i]=yyyymmdd;
 	    }
-	}
+		else{
+			printf("hash: %d  enc: %d ----NOPE \n",hashesDevice[i], encoded);
+		}
+	}*/
 }
 
 
 int main(void)
 {
 	#define dim 100
-	char * resultsHost[dim];
-	char ** resultsDevice;
+	int resultsHost[dim];
 	FILE * fp;
 	char * line = NULL;
 	size_t len = 0;
 	ssize_t read;
-	char* hashesHost[dim];
+	u_int64_t hashesHost[dim];
 	int k=0;
 	fp = fopen("PswDb/db100.txt", "r");
 	while ((read = getline(&line, &len, fp)) != -1) {
-	char* hash =(char*) malloc(sizeof(char)*14);
-	for(int i = 0; i<13; i++){
-	  hash[i]=line[i+9];
-	}
-	hash[13]=0; //string termination
-	hashesHost[k]=hash;
-	k++;
+		char* hash =(char*) malloc(sizeof(char)*9);
+		for(int i = 0; i<9; i++){
+		  hash[i]=line[i];
+		}
+		hash[8]= '\0'; //string termination
+		hashesHost[k]=full_des_encode_block(atoi(hash),atoi(hash));
+		k++;
 	}
 	fclose(fp);
 	free(line);
-	char yyyymmdd[9] = {'1','9','9','6','1','0','2','4', 0};
-	char* psw;
-	char* salt = "parallel";
-	psw = crypt(yyyymmdd, salt);
-	printf("HOST --> Date: %s Hash: %s \n", yyyymmdd,psw);
-	//printf("--- %s\n", hashesHost[70]);
 
 	//GPU memory allocation
-	char * _ptrDevice[dim];
-	char ** hashesDevice;
+	u_int64_t* hashesDevice;
+	int* resultsDevice;
 
-	for (int i = 0; i < 100; i++) {
+	CUDA_CHECK_RETURN( cudaMalloc((void **)&hashesDevice, dim * sizeof(u_int64_t)) );
 
-		CUDA_CHECK_RETURN( cudaMalloc((void **)&_ptrDevice[i], 13 * sizeof(char)) );
-
-		CUDA_CHECK_RETURN( cudaMemcpy(_ptrDevice[i], hashesHost[i], 13 * sizeof(char), cudaMemcpyHostToDevice) );
-
-	  }
-	CUDA_CHECK_RETURN( cudaMalloc((void ***)&hashesDevice, dim * sizeof(char*)) );
-
-	CUDA_CHECK_RETURN( cudaMemcpy(hashesDevice, _ptrDevice, dim * sizeof(char*), cudaMemcpyHostToDevice) );
-
+	CUDA_CHECK_RETURN( cudaMemcpy(hashesDevice, hashesHost, dim * sizeof(u_int64_t), cudaMemcpyHostToDevice) );
 
 	CUDA_CHECK_RETURN(
-		  cudaMalloc((void **) &resultsDevice, sizeof(char) * 13 * dim));
+			  cudaMalloc((void **) &resultsDevice, sizeof(int) * dim));
 
 	//@@ INSERT CODE HERE
 	dim3 dimGrid(7,4);
 	dim3 dimBlock(10,3,31);
-	kernel<<<dimGrid, dimBlock>>>(resultsDevice,dim,hashesDevice);
+	kernel<<<dimGrid,dimBlock>>>(resultsDevice,dim,hashesDevice);
 	// copy results from device memory to host
 
 	CUDA_CHECK_RETURN(
-	  cudaMemcpy(resultsHost, resultsDevice, dim * 13 * sizeof(char),
+	  cudaMemcpy(resultsHost, resultsDevice, dim * sizeof(int),
 		  cudaMemcpyDeviceToHost));
 
 	cudaFree(hashesDevice);
 	cudaFree(resultsDevice);
+	int count = 0;
+	for(int i = 0; i < dim; i++){
+		if(resultsHost[i]==1)
+			count++;
+	}
+	printf("ccc: %d", count);
 	return 0;
 }
