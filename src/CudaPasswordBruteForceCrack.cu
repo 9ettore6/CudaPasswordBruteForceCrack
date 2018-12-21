@@ -43,7 +43,7 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
   exit(1);
 }
 //__constant__ char dictionary[10]={'0','1','2','3','4','5','6','7','8','9'};
-__global__ void kernel(int* resultsDevice, int dim, uint64_t* hashesDevice) {
+__global__ void kernel(int* resultsDevice, int dim, uint64_t* hashesDevice, uint64_t* testTh) {
 	int mI = threadIdx.y+blockIdx.y*blockDim.y;
 	int yI = threadIdx.x+blockIdx.x*blockDim.x + 1940;
 	int dI = threadIdx.z;
@@ -54,9 +54,9 @@ __global__ void kernel(int* resultsDevice, int dim, uint64_t* hashesDevice) {
 	for(int i=0;i<dim;i++){
 		//printf("%d -- %d\n", hashesDevice[i], encoded);
 		if (hashesDevice[i] == encoded){
-			resultsDevice[i] = key;
+			resultsDevice[i] = 1;
 		}else{
-			resultsDevice[i] = key;
+			testTh[(yI-1940)*12*31+mI*31+dI] = key;
 		}
 	}
 }
@@ -64,15 +64,16 @@ __global__ void kernel(int* resultsDevice, int dim, uint64_t* hashesDevice) {
 
 int main(void)
 {
-	#define dim 500
+	#define dim 100
 	int resultsHost[dim];
+	uint64_t hostTestTH[26040];
 	FILE * fp;
 	char * line = NULL;
 	size_t len = 0;
 	ssize_t read;
 	uint64_t hashesHost[dim];
 	int k=0;
-	fp = fopen("PswDb/db500.txt", "r");
+	fp = fopen("PswDb/db100.txt", "r");
 	while ((read = getline(&line, &len, fp)) != -1) {
 		char* hash =(char*) malloc(sizeof(char)*9);
 		for(int i = 0; i<9; i++){
@@ -88,6 +89,7 @@ int main(void)
 	//GPU memory allocation
 	uint64_t* hashesDevice;
 	int* resultsDevice;
+	uint64_t* testTh;
 
 	CUDA_CHECK_RETURN( cudaMalloc((void **)&hashesDevice, dim * sizeof(uint64_t)) );
 
@@ -95,10 +97,11 @@ int main(void)
 
 	CUDA_CHECK_RETURN( cudaMalloc((void **) &resultsDevice, sizeof(int) * dim));
 
+	CUDA_CHECK_RETURN( cudaMalloc((void **) &testTh, sizeof(uint64_t) * 26040));
 	//@@ INSERT CODE HERE
 	dim3 dimGrid(7,4);
 	dim3 dimBlock(10,3,31);//
-	kernel<<<dimGrid,dimBlock>>>(resultsDevice,dim,hashesDevice);
+	kernel<<<dimGrid,dimBlock>>>(resultsDevice,dim,hashesDevice,testTh);
 	// copy results from device memory to host
 	/*for(int i = 0; i < dim; i++){
 		resultsHost[i] = 0;
@@ -107,6 +110,9 @@ int main(void)
 	CUDA_CHECK_RETURN(
 	  cudaMemcpy(resultsHost, resultsDevice, dim * sizeof(int),
 		  cudaMemcpyDeviceToHost));
+	CUDA_CHECK_RETURN(
+		  cudaMemcpy(hostTestTH, testTh, dim * sizeof(uint64_t),
+			  cudaMemcpyDeviceToHost));
 	//printf("***********%d\n",resultsHost[15]);
 	cudaFree(hashesDevice);
 	cudaFree(resultsDevice);
@@ -119,7 +125,7 @@ int main(void)
 			printf("hash ok: %d\n", resultsHost[i]);
 		}else{
 			countff++;
-			printf("hash nope: %d\n", resultsHost[i]);
+			printf("hash nope: %d\n", hostTestTH[i]);
 		}
 	}
 	printf("ccc: %d\n", count);
