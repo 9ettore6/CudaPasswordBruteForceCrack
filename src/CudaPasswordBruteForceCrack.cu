@@ -13,6 +13,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fstream>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+#include <thrust/sort.h>
+#include "crypt.h"
 #include "c_utils.h"
 #include "des.h"
 #include "des_utils.h"
@@ -40,21 +44,30 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
 }
 
 __global__ void kernel(int* resultsDevice, int dim, uint64_t* hashesDevice) {
-	int mI = threadIdx.y+blockIdx.y*blockDim.y;
-	int yI = threadIdx.x+blockIdx.x*blockDim.x + 1940;
-	int dI = threadIdx.z;
-	uint64_t key = yI*10000+mI*100+dI;
+
+	int date = threadIdx.x+blockDim.x*blockIdx.x;
+	int year=(date/417)+1940;
+	int month=((date%417)/32);
+	int day=(date%32);
+	uint64_t key = year*10000+month*100+day;
 	uint64_t encoded = 0;
 	encoded = full_des_encode_block(key, key);
-	for(int i=0;i<dim;i++){
-		if (hashesDevice[i] == encoded){
-			resultsDevice[i] = 1;
+	printf("data: %d \n", key);
+	if(month == 0 || day == 0){
+	}else{
+		if(date==29120)
+			printf("%d \n",key);
+		for(int i=0;i<dim;i++){
+			if (hashesDevice[i] == encoded){
+				resultsDevice[i] = 1;
+			}
 		}
 	}
 }
 
 
-int main(void){
+int main(void)
+{
 	#define dim 1000
 	int resultsHost[dim];
 	FILE * fp;
@@ -85,16 +98,17 @@ int main(void){
 	CUDA_CHECK_RETURN( cudaMemcpy(hashesDevice, hashesHost, dim * sizeof(uint64_t), cudaMemcpyHostToDevice) );
 
 	CUDA_CHECK_RETURN( cudaMalloc((void **) &resultsDevice, sizeof(int) * dim));
+	//My machine is currently running on 3SM & 128 cudaCore/SM
+	//@@ INSERT CODE HERE
 
-	dim3 dimGrid(8,5);
-	dim3 dimBlock(10,3,32);//
 	clock_t start = clock();
-	kernel<<<dimGrid,dimBlock>>>(resultsDevice,dim,hashesDevice);
+	kernel<<<228,128>>>(resultsDevice,dim,hashesDevice);
 	// copy results from device memory to host
+
 	cudaDeviceSynchronize();
 	CUDA_CHECK_RETURN(
-	  cudaMemcpy(resultsHost, resultsDevice, dim * sizeof(int),
-		  cudaMemcpyDeviceToHost));
+		  cudaMemcpy(resultsHost, resultsDevice, dim * sizeof(int),
+			  cudaMemcpyDeviceToHost));
 	clock_t end = clock();
 	float seconds = (float) (end - start) / CLOCKS_PER_SEC;
 	cudaFree(hashesDevice);
@@ -106,7 +120,6 @@ int main(void){
 			count++;
 		}
 	}
-	printf("found hashes: %d\n", count);
 	printf("time: %f",seconds);
 	return 0;
 }
