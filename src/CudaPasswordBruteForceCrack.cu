@@ -55,7 +55,7 @@ __global__ void kernel(int* resultsDevice, int dim, uint64_t* hashesDevice) {
 
 
 int main(void){
-	#define dim 100
+	#define dim 1000
 	int resultsHost[dim];
 	FILE * fp;
 	char * line = NULL;
@@ -63,7 +63,7 @@ int main(void){
 	ssize_t read;
 	uint64_t hashesHost[dim];
 	int k=0;
-	fp = fopen("PswDb/db100.txt", "r");
+	fp = fopen("PswDb/db1000.txt", "r");
 	while ((read = getline(&line, &len, fp)) != -1) {
 		char* hash =(char*) malloc(sizeof(char)*9);
 		for(int i = 0; i<9; i++){
@@ -91,13 +91,12 @@ int main(void){
 	clock_t start = clock();
 	kernel<<<dimGrid,dimBlock>>>(resultsDevice,dim,hashesDevice);
 	// copy results from device memory to host
-	clock_t end = clock();
 	cudaDeviceSynchronize();
-	float seconds = (float) (end - start) / CLOCKS_PER_SEC;
 	CUDA_CHECK_RETURN(
 	  cudaMemcpy(resultsHost, resultsDevice, dim * sizeof(int),
 		  cudaMemcpyDeviceToHost));
-
+	clock_t end = clock();
+	float seconds = (float) (end - start) / CLOCKS_PER_SEC;
 	cudaFree(hashesDevice);
 	cudaFree(resultsDevice);
 
