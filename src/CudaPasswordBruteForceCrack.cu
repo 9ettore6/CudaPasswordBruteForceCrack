@@ -52,7 +52,8 @@ __global__ void kernel(int* resultsDevice, int dim, uint64_t* hashesDevice) {
 	uint64_t key = year*10000+month*100+day;
 	uint64_t encoded = 0;
 	encoded = full_des_encode_block(key, key);
-	printf("data: %d \n", key);
+	if(date==29690)
+		printf("data: %d \n", key);
 	if(month == 0 || day == 0){
 	}else{
 		if(date==29120)
@@ -68,7 +69,7 @@ __global__ void kernel(int* resultsDevice, int dim, uint64_t* hashesDevice) {
 
 int main(void)
 {
-	#define dim 1000
+	#define dim 500
 	int resultsHost[dim];
 	FILE * fp;
 	char * line = NULL;
@@ -76,7 +77,7 @@ int main(void)
 	ssize_t read;
 	uint64_t hashesHost[dim];
 	int k=0;
-	fp = fopen("PswDb/db1000.txt", "r");
+	fp = fopen("PswDb/db500.txt", "r");
 	while ((read = getline(&line, &len, fp)) != -1) {
 		char* hash =(char*) malloc(sizeof(char)*9);
 		for(int i = 0; i<9; i++){
@@ -102,7 +103,7 @@ int main(void)
 	//@@ INSERT CODE HERE
 
 	clock_t start = clock();
-	kernel<<<228,128>>>(resultsDevice,dim,hashesDevice);
+	kernel<<<232,128>>>(resultsDevice,dim,hashesDevice);
 	// copy results from device memory to host
 
 	cudaDeviceSynchronize();
@@ -120,6 +121,7 @@ int main(void)
 			count++;
 		}
 	}
+	printf("ccc: %d\n",count);
 	printf("time: %f",seconds);
 	return 0;
 }
